@@ -13,29 +13,13 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
-    protected $fillable = [
-        'name',
-        'email', 
-        'password',
-        'phone_number',
-        'instagram',
-        'avatar_url',
-        'referal_code',
-        'referal_by_code',
-        'uid',
-        'email_verification_otp',
-        'email_verification_otp_expires_at',
-        'password_reset_otp',
-        'password_reset_otp_expires_at',
-        'email_verified_at',
-        'email_verification_sent_at',
-        'last_login',
-    ];
 #[Hidden(['password', 'remember_token', 'email_verification_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, HasApiTokens;
+
+    protected $guarded = [];
 
     /**
      * Get the attributes that should be cast.
