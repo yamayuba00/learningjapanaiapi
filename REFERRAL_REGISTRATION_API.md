@@ -37,6 +37,15 @@ Flow registrasi dengan referral:
 - `phone_number`: nullable, string, max:20
 - `instagram`: nullable, string, max:100
 - `referral_code`: nullable, string, max:20, exists:users,referal_code
+  - **IMPORTANT**: Referral code can only be used if the referrer has verified their email
+
+### Response Error - Unverified Referrer
+```json
+{
+  "success": false,
+  "message": "Registration failed: Referral code is not active. The referrer must verify their email first."
+}
+```
 
 ### Response Success
 ```json
@@ -275,6 +284,7 @@ const login = async (email, password) => {
 
 ### Referral Code Validation
 - Referral code must exist in database
+- **Referrer must have verified email** (NEW REQUIREMENT)
 - Cannot use own referral code
 - Rewards only processed once per user
 
@@ -282,6 +292,7 @@ const login = async (email, password) => {
 - Mandatory email verification before login
 - OTP expires in 10 minutes
 - Rewards only given after successful verification
+- **Referral codes only active after email verification**
 
 ### Transaction Safety
 - All operations wrapped in database transactions

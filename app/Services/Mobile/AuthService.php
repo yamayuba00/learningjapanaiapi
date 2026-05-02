@@ -42,6 +42,14 @@ class AuthService
                         'message' => 'Invalid referral code'
                     ];
                 }
+                
+                // Check if referrer has verified their email
+                if (!$referrerUser->hasVerifiedEmail()) {
+                    return [
+                        'success' => false,
+                        'message' => 'Referral code is not active. The referrer must verify their email first.'
+                    ];
+                }
             }
 
             // Generate email verification OTP
@@ -447,9 +455,28 @@ class AuthService
             ];
         }
 
+        // Clean profile data - only essential fields
+        $profileData = [
+            'uid' => $user->uid,
+            'name' => $user->name,
+            'email' => $user->email,
+            'phone_number' => $user->phone_number,
+            'instagram' => $user->instagram,
+            'avatar_url' => $user->avatar_url,
+            'referal_code' => $user->referal_code,
+            'email_verified' => $user->hasVerifiedEmail(),
+            'is_blocked' => $user->is_blocked,
+            'member_since' => $user->created_at->format('Y-m-d'),
+            'credits' => [
+                'current' => $user->credit ? $user->credit->credits : 0,
+                'total_earned' => $user->credit ? $user->credit->total_points : 0,
+                'streak' => $user->credit ? $user->credit->streak : 0,
+            ]
+        ];
+
         return [
             'success' => true,
-            'user' => $user
+            'profile' => $profileData
         ];
     }
 
@@ -462,7 +489,7 @@ class AuthService
      */
     public function updateProfile(string $uid, array $data): array
     {
-        $user = User::where('uid', $uid)->first();
+        $user = User::where('uid', $uid)->with('credit')->first();
         
         if (!$user) {
             return [
@@ -490,10 +517,30 @@ class AuthService
         }
 
         $user->update($updateData);
+        $user->refresh();
+
+        // Return clean profile data - same format as getProfile
+        $profileData = [
+            'uid' => $user->uid,
+            'name' => $user->name,
+            'email' => $user->email,
+            'phone_number' => $user->phone_number,
+            'instagram' => $user->instagram,
+            'avatar_url' => $user->avatar_url,
+            'referal_code' => $user->referal_code,
+            'email_verified' => $user->hasVerifiedEmail(),
+            'is_blocked' => $user->is_blocked,
+            'member_since' => $user->created_at->format('Y-m-d'),
+            'credits' => [
+                'current' => $user->credit ? $user->credit->credits : 0,
+                'total_earned' => $user->credit ? $user->credit->total_points : 0,
+                'streak' => $user->credit ? $user->credit->streak : 0,
+            ]
+        ];
 
         return [
             'success' => true,
-            'user' => $user->fresh(),
+            'profile' => $profileData,
             'message' => 'Profile updated successfully'
         ];
     }

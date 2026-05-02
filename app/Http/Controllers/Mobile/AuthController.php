@@ -32,7 +32,20 @@ class AuthController extends Controller
             'password' => 'required|string|min:8|confirmed',
             'phone_number' => 'nullable|string|max:20',
             'instagram' => 'nullable|string|max:100',
-            'referral_code' => 'nullable|string|max:20|exists:users,referal_code',
+            'referral_code' => [
+                'nullable',
+                'string',
+                'max:20',
+                'exists:users,referal_code',
+                function ($attribute, $value, $fail) {
+                    if ($value) {
+                        $referrer = \App\Models\User::where('referal_code', $value)->first();
+                        if ($referrer && !$referrer->hasVerifiedEmail()) {
+                            $fail('The referral code is not active. The referrer must verify their email first.');
+                        }
+                    }
+                },
+            ],
         ]);
 
         if ($validator->fails()) {
@@ -99,8 +112,13 @@ class AuthController extends Controller
     {
         try {
             $user = $request->user();
-            $profile = $this->authService->getProfile($user->uid);
-            return ResponseHelper::success($profile, 'Profile retrieved successfully');
+            $result = $this->authService->getProfile($user->uid);
+            
+            if (!$result['success']) {
+                return ResponseHelper::error($result['message'], 404);
+            }
+            
+            return ResponseHelper::success($result['profile'], 'Profile retrieved successfully');
         } catch (\Exception $e) {
             return ResponseHelper::error('Failed to get profile: ' . $e->getMessage());
         }
@@ -124,8 +142,13 @@ class AuthController extends Controller
 
         try {
             $user = $request->user();
-            $updated = $this->authService->updateProfile($user->uid, $request->all());
-            return ResponseHelper::success($updated, 'Profile updated successfully');
+            $result = $this->authService->updateProfile($user->uid, $request->all());
+            
+            if (!$result['success']) {
+                return ResponseHelper::error($result['message'], 404);
+            }
+            
+            return ResponseHelper::success($result['profile'], $result['message']);
         } catch (\Exception $e) {
             return ResponseHelper::error('Failed to update profile: ' . $e->getMessage());
         }
