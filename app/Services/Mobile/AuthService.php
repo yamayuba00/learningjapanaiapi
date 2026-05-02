@@ -658,6 +658,13 @@ class AuthService
             return;
         }
 
+        // Check if reward already processed (prevent duplicate)
+        $existingReward = ReferralReward::where('referred_user_uid', $newUser->uid)->first();
+        if ($existingReward) {
+            Log::info("Referral reward already processed for user: {$newUser->uid}");
+            return;
+        }
+
         // Add credits to referrer (100 credits)
         $referrerCredit = UserCredit::where('user_uid', $referrerUser->uid)->first();
         if ($referrerCredit) {
@@ -674,12 +681,12 @@ class AuthService
 
         // Create referral reward record
         ReferralReward::create([
+            'referrer_user_id' => $referrerUser->id,
             'referrer_user_uid' => $referrerUser->uid,
+            'referred_user_id' => $newUser->id,
             'referred_user_uid' => $newUser->uid,
-            'referrer_reward' => 100,
-            'referred_reward' => 40,
-            'status' => 'completed',
-            'processed_at' => now(),
+            'referrer_credits_earned' => 100,
+            'referred_credits_earned' => 40,
         ]);
 
         Log::info("Referral rewards processed: Referrer {$referrerUser->uid} (+100), New user {$newUser->uid} (+40)");
