@@ -119,6 +119,8 @@ class AuthService
 
         // Check if email is verified (REQUIRED)
         if (!$user->hasVerifiedEmail()) {
+            Log::warning("Login blocked - email not verified for user: {$user->uid}, email: {$user->email}");
+            Log::warning("email_verified_at value: " . ($user->email_verified_at ? $user->email_verified_at->format('Y-m-d H:i:s') : 'NULL'));
             return [
                 'success' => false,
                 'message' => 'Please verify your email before logging in'
@@ -236,6 +238,16 @@ class AuthService
                 'email_verification_otp' => null,
                 'email_verification_otp_expires_at' => null,
             ]);
+
+            // Log the verification
+            Log::info("Email verified for user: {$user->uid}, email: {$user->email}");
+            
+            // Refresh user to get updated data
+            $user->refresh();
+            
+            // Verify the update worked
+            Log::info("After refresh - email_verified_at: " . ($user->email_verified_at ? $user->email_verified_at->format('Y-m-d H:i:s') : 'NULL'));
+            Log::info("After refresh - hasVerifiedEmail(): " . ($user->hasVerifiedEmail() ? 'TRUE' : 'FALSE'));
 
             // Process referral rewards if user was referred
             if ($user->referal_by_code && $user->referal_by_code !== 'SYSTEM') {
