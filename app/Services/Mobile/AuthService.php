@@ -4,6 +4,7 @@ namespace App\Services\Mobile;
 
 use App\Models\User;
 use App\Models\UserCredit;
+use App\Models\ReferralReward;
 use App\Mail\EmailVerificationOTP;
 use App\Mail\PasswordResetOTP;
 use Illuminate\Support\Facades\Hash;
@@ -31,6 +32,18 @@ class AuthService
                 $data['referal_code'] = $this->generateReferralCode();
             }
 
+            // Validate referral code if provided
+            $referrerUser = null;
+            if (!empty($data['referral_code'])) {
+                $referrerUser = User::where('referal_code', $data['referral_code'])->first();
+                if (!$referrerUser) {
+                    return [
+                        'success' => false,
+                        'message' => 'Invalid referral code'
+                    ];
+                }
+            }
+
             // Generate email verification OTP
             $otp = $this->generateOTP();
 
@@ -43,13 +56,13 @@ class AuthService
                 'instagram' => $data['instagram'] ?? null,
                 'avatar_url' => $data['avatar_url'] ?? null,
                 'referal_code' => $data['referal_code'],
-                'referal_by_code' => $data['referal_by_code'] ?? 'SYSTEM',
+                'referal_by_code' => $data['referral_code'] ?? 'SYSTEM',
                 'email_verification_otp' => $otp,
                 'email_verification_otp_expires_at' => now()->addMinutes(10),
                 'email_verification_sent_at' => now(),
             ]);
 
-            // Create user credit record
+            // Create user credit record (initial credits = 0, will be added after email verification)
             UserCredit::create([
                 'user_id' => $user->id,
                 'user_uid' => $user->uid,
@@ -104,13 +117,13 @@ class AuthService
             ];
         }
 
-        // Check if email is verified (optional, can be disabled)
-        // if (!$user->hasVerifiedEmail()) {
-        //     return [
-        //         'success' => false,
-        //         'message' => 'Please verify your email before logging in'
-        //     ];
-        // }
+        // Check if email is verified (REQUIRED)
+        if (!$user->hasVerifiedEmail()) {
+            return [
+                'success' => false,
+                'message' => 'Please verify your email before logging in'
+            ];
+        }
 
         // Update last login
         $user->update(['last_login' => now()]);
@@ -183,47 +196,65 @@ class AuthService
      */
     public function verifyEmailWithOTP(string $email, string $otp): array
     {
-        $user = User::where('email', $email)->first();
+        try {
+            DB::beginTransaction();
 
-        if (!$user) {
+            $user = User::where('email', $email)->first();
+
+            if (!$user) {
+                return [
+                    'success' => false,
+                    'message' => 'User not found'
+                ];
+            }
+
+            if ($user->hasVerifiedEmail()) {
+                return [
+                    'success' => false,
+                    'message' => 'Email already verified'
+                ];
+            }
+
+            if (!$user->email_verification_otp || $user->email_verification_otp !== $otp) {
+                return [
+                    'success' => false,
+                    'message' => 'Invalid verification code'
+                ];
+            }
+
+            // Check if OTP is expired
+            if ($user->email_verification_otp_expires_at && $user->email_verification_otp_expires_at->isPast()) {
+                return [
+                    'success' => false,
+                    'message' => 'Verification code has expired. Please request a new one.'
+                ];
+            }
+
+            // Mark email as verified
+            $user->update([
+                'email_verified_at' => now(),
+                'email_verification_otp' => null,
+                'email_verification_otp_expires_at' => null,
+            ]);
+
+            // Process referral rewards if user was referred
+            if ($user->referal_by_code && $user->referal_by_code !== 'SYSTEM') {
+                $this->processReferralRewards($user);
+            }
+
+            DB::commit();
+
+            return [
+                'success' => true,
+                'message' => 'Email verified successfully'
+            ];
+        } catch (\Exception $e) {
+            DB::rollBack();
             return [
                 'success' => false,
-                'message' => 'User not found'
+                'message' => 'Email verification failed: ' . $e->getMessage()
             ];
         }
-
-        if ($user->hasVerifiedEmail()) {
-            return [
-                'success' => false,
-                'message' => 'Email already verified'
-            ];
-        }
-
-        if (!$user->email_verification_otp || $user->email_verification_otp !== $otp) {
-            return [
-                'success' => false,
-                'message' => 'Invalid verification code'
-            ];
-        }
-
-        // Check if OTP is expired
-        if ($user->email_verification_otp_expires_at && $user->email_verification_otp_expires_at->isPast()) {
-            return [
-                'success' => false,
-                'message' => 'Verification code has expired. Please request a new one.'
-            ];
-        }
-
-        $user->update([
-            'email_verified_at' => now(),
-            'email_verification_otp' => null,
-            'email_verification_otp_expires_at' => null,
-        ]);
-
-        return [
-            'success' => true,
-            'message' => 'Email verified successfully'
-        ];
     }
 
     /**
@@ -601,6 +632,57 @@ class AuthService
             'success' => true,
             'message' => 'Password reset successfully. Please login with your new password.'
         ];
+    }
+
+    /**
+     * Check if email already exists
+     *
+     * @param string $email
+     * @return array
+     */
+    
+
+    /**
+     * Process referral rewards when user verifies email
+     *
+     * @param User $newUser
+     * @return void
+     */
+    private function processReferralRewards(User $newUser): void
+    {
+        // Find referrer user
+        $referrerUser = User::where('referal_code', $newUser->referal_by_code)->first();
+        
+        if (!$referrerUser) {
+            Log::warning("Referrer not found for code: {$newUser->referal_by_code}");
+            return;
+        }
+
+        // Add credits to referrer (100 credits)
+        $referrerCredit = UserCredit::where('user_uid', $referrerUser->uid)->first();
+        if ($referrerCredit) {
+            $referrerCredit->increment('credits', 100);
+            $referrerCredit->increment('total_points', 100);
+        }
+
+        // Add credits to new user (40 credits)
+        $newUserCredit = UserCredit::where('user_uid', $newUser->uid)->first();
+        if ($newUserCredit) {
+            $newUserCredit->increment('credits', 40);
+            $newUserCredit->increment('total_points', 40);
+        }
+
+        // Create referral reward record
+        ReferralReward::create([
+            'referrer_user_uid' => $referrerUser->uid,
+            'referred_user_uid' => $newUser->uid,
+            'referrer_reward' => 100,
+            'referred_reward' => 40,
+            'status' => 'completed',
+            'processed_at' => now(),
+        ]);
+
+        Log::info("Referral rewards processed: Referrer {$referrerUser->uid} (+100), New user {$newUser->uid} (+40)");
     }
 
     /**

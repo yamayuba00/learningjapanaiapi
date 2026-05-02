@@ -32,6 +32,7 @@ class AuthController extends Controller
             'password' => 'required|string|min:8|confirmed',
             'phone_number' => 'nullable|string|max:20',
             'instagram' => 'nullable|string|max:100',
+            'referral_code' => 'nullable|string|max:20|exists:users,referal_code',
         ]);
 
         if ($validator->fails()) {
