@@ -23,16 +23,31 @@ class PartnershipRepository implements PartnershipRepositoryInterface
     }
 
     /**
-     * Get all active JLPT classes
+     * Get all active JLPT classes with pagination
      */
-    public function getActiveJlptClasses()
+    public function getActiveJlptClasses(int $perPage = 10, int $page = 1)
     {
-        return $this->jlptClassModel
+        $query = $this->jlptClassModel
             ->where('is_active', true)
             ->where('is_verified', true)
             ->orderBy('display_order', 'asc')
-            ->orderBy('name', 'asc')
+            ->orderBy('name', 'asc');
+
+        $total = $query->count();
+        $data = $query->skip(($page - 1) * $perPage)
+            ->take($perPage)
             ->get();
+
+        return [
+            'data' => $data,
+            'pagination' => [
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'total_pages' => ceil($total / $perPage),
+                'has_more' => $page < ceil($total / $perPage)
+            ]
+        ];
     }
 
     /**
@@ -48,16 +63,31 @@ class PartnershipRepository implements PartnershipRepositoryInterface
     }
 
     /**
-     * Get all active internships
+     * Get all active internships with pagination
      */
-    public function getActiveInternships()
+    public function getActiveInternships(int $perPage = 10, int $page = 1)
     {
-        return $this->internshipModel
+        $query = $this->internshipModel
             ->where('is_active', true)
             ->where('is_verified', true)
             ->orderBy('display_order', 'asc')
-            ->orderBy('success_rate', 'desc')
+            ->orderBy('success_rate', 'desc');
+
+        $total = $query->count();
+        $data = $query->skip(($page - 1) * $perPage)
+            ->take($perPage)
             ->get();
+
+        return [
+            'data' => $data,
+            'pagination' => [
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'total_pages' => ceil($total / $perPage),
+                'has_more' => $page < ceil($total / $perPage)
+            ]
+        ];
     }
 
     /**

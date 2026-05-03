@@ -5,9 +5,9 @@ namespace App\Repositories\Shared;
 interface PartnershipRepositoryInterface
 {
     /**
-     * Get all active JLPT classes
+     * Get all active JLPT classes with pagination
      */
-    public function getActiveJlptClasses();
+    public function getActiveJlptClasses(int $perPage = 10, int $page = 1);
 
     /**
      * Get JLPT class by UID
@@ -15,9 +15,9 @@ interface PartnershipRepositoryInterface
     public function getJlptClassByUid(string $uid);
 
     /**
-     * Get all active internships
+     * Get all active internships with pagination
      */
-    public function getActiveInternships();
+    public function getActiveInternships(int $perPage = 10, int $page = 1);
 
     /**
      * Get internship by UID

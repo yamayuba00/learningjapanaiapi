@@ -23,12 +23,16 @@ class PartnershipController extends Controller
     /**
      * Get all JLPT classes
      * 
+     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getJlptClasses()
+    public function getJlptClasses(Request $request)
     {
         try {
-            $result = $this->partnershipService->getJlptClasses();
+            $perPage = $request->input('per_page', 10);
+            $page = $request->input('page', 1);
+            
+            $result = $this->partnershipService->getJlptClasses($perPage, $page);
 
             if (!$result['success']) {
                 return ResponseHelper::error($result['message']);
@@ -64,12 +68,16 @@ class PartnershipController extends Controller
     /**
      * Get all internships
      * 
+     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getInternships()
+    public function getInternships(Request $request)
     {
         try {
-            $result = $this->partnershipService->getInternships();
+            $perPage = $request->input('per_page', 10);
+            $page = $request->input('page', 1);
+            
+            $result = $this->partnershipService->getInternships($perPage, $page);
 
             if (!$result['success']) {
                 return ResponseHelper::error($result['message']);

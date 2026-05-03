@@ -19,16 +19,19 @@ class PartnershipService
     }
 
     /**
-     * Get all JLPT classes
+     * Get all JLPT classes with pagination
      */
-    public function getJlptClasses(): array
+    public function getJlptClasses(int $perPage = 10, int $page = 1): array
     {
         try {
-            $classes = $this->partnershipRepository->getActiveJlptClasses();
+            $result = $this->partnershipRepository->getActiveJlptClasses($perPage, $page);
 
             return [
                 'success' => true,
-                'data' => $classes,
+                'data' => [
+                    'items' => $result['data'],
+                    'pagination' => $result['pagination']
+                ],
                 'message' => 'JLPT classes retrieved successfully'
             ];
         } catch (\Exception $e) {
@@ -68,16 +71,19 @@ class PartnershipService
     }
 
     /**
-     * Get all internships
+     * Get all internships with pagination
      */
-    public function getInternships(): array
+    public function getInternships(int $perPage = 10, int $page = 1): array
     {
         try {
-            $internships = $this->partnershipRepository->getActiveInternships();
+            $result = $this->partnershipRepository->getActiveInternships($perPage, $page);
 
             return [
                 'success' => true,
-                'data' => $internships,
+                'data' => [
+                    'items' => $result['data'],
+                    'pagination' => $result['pagination']
+                ],
                 'message' => 'Internships retrieved successfully'
             ];
         } catch (\Exception $e) {
